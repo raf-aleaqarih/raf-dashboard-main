@@ -137,48 +137,78 @@ const CategoryForm = ({ lang, form, onSubmit, isLoading }: { lang: string; form:
 
           <div className="grid grid-cols-2 gap-4">
 
-            <FormField
-              control={form.control}
-              name="coordinates"
-              render={({ field }) => (
-                <FormItem className="col-span-2">
-                  <FormLabel>
-                    {lang === "ar" ? "رابط خرائط جوجل" : "Google Maps Link"}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={
-                        lang === "ar"
-                          ? "الصق رابط خرائط جوجل هنا"
-                          : "Paste Google Maps link here"
-                      }
-                      onChange={(e) => {
-                        const coords = extractCoordinatesFromGoogleMapsUrl(e.target.value)
-                        if (coords) {
-                          field.onChange(coords)
-                          form.setValue('coordinates.latitude', coords.latitude)
-                          form.setValue('coordinates.longitude', coords.longitude)
+            <div className="col-span-2 space-y-4">
+              <FormField
+                control={form.control}
+                name="googleMapsUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {lang === "ar" ? "رابط خرائط جوجل" : "Google Maps Link"}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={
+                          lang === "ar"
+                            ? "الصق رابط خرائط جوجل هنا"
+                            : "Paste Google Maps link here"
                         }
-                      }}
-                    />
-                  </FormControl>
-                  <div className="grid grid-cols-2 gap-4 mt-2">
-                    <Input
-                      type="text"
-                      value={field.value?.latitude || ''}
-                      readOnly
-                      placeholder={lang === "ar" ? "خط العرض" : "Latitude"}
-                    />
-                    <Input
-                      type="text"
-                      value={field.value?.longitude || ''}
-                      readOnly
-                      placeholder={lang === "ar" ? "خط الطول" : "Longitude"}
-                    />
-                  </div>
-                </FormItem>
-              )}
-            />
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          const coords = extractCoordinatesFromGoogleMapsUrl(e.target.value)
+                          if (coords) {
+                            form.setValue('coordinates.latitude', coords.latitude)
+                            form.setValue('coordinates.longitude', coords.longitude)
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="coordinates.latitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{lang === "ar" ? "خط العرض" : "Latitude"}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          {...field}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="coordinates.longitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{lang === "ar" ? "خط الطول" : "Longitude"}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          {...field}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -246,44 +276,44 @@ export default function AddCategory() {
     })
   }
 
-  const onSubmit = async (data: FormData) => {
-    setIsLoading(true)
-    try {
-      const formData = new FormData()
-      if (data.title) formData.append('title', data.title)
-      if (data.area !== undefined) formData.append('area', data.area.toString())
-      if (data.description) formData.append('description', data.description)
-      if (data.location) formData.append('location', data.location)
-      if (data.coordinates) {
-        formData.append('coordinates[latitude]', data.coordinates.latitude?.toString() || '0')
-        formData.append('coordinates[longitude]', data.coordinates.longitude?.toString() || '0')
-      } else {
-        formData.append('coordinates[latitude]', '0')
-        formData.append('coordinates[longitude]', '0')
-      }
-      if (data.lang) formData.append('lang', data.lang)
-      if (data.Image) {
-        formData.append('image', data.Image)
-      }
-
-      const response = await fetch("https://raf-backend-main.vercel.app/category/create", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        body: formData
-      })
-
-
-      if (!response.ok) throw new Error("Failed to add category")
-
-      toast.success(data.lang === "ar" ? "تم إضافة المشروع بنجاح" : "Category added successfully")
-      router.push("/category")
-    } catch (error) {
-      toast.error(data.lang === "ar" ? "حدث خطأ أثناء الإضافة" : "Error adding category")
-    } finally {
-      setIsLoading(false)
+const onSubmit = async (data: FormData) => {
+  setIsLoading(true)
+  try {
+    const formData = new FormData()
+    if (data.title) formData.append('title', data.title)
+    if (data.area !== undefined) formData.append('area', data.area.toString())
+    if (data.description) formData.append('description', data.description)
+    if (data.location) formData.append('location', data.location)
+    
+    // ✅ إرسال الإحداثيات كحقول منفصلة
+    if (data.coordinates?.latitude) {
+      formData.append('latitude', data.coordinates.latitude.toString())
     }
-  }
+    if (data.coordinates?.longitude) {
+      formData.append('longitude', data.coordinates.longitude.toString())
+    }
+    
+    if (data.lang) formData.append('lang', data.lang)
+    if (data.Image) {
+      formData.append('image', data.Image)
+    }
 
+    const response = await fetch("https://raf-backend-main.vercel.app/category/create", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      body: formData
+    })
+
+    if (!response.ok) throw new Error("Failed to add category")
+
+    toast.success(data.lang === "ar" ? "تم إضافة المشروع بنجاح" : "Category added successfully")
+    router.push("/category")
+  } catch (error) {
+    toast.error(data.lang === "ar" ? "حدث خطأ أثناء الإضافة" : "Error adding category")
+  } finally {
+    setIsLoading(false)
+  }
+}
 
   return (
     <div className="min-h-screen bg-gray-100">
